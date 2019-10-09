@@ -1,0 +1,179 @@
+using Android.App;
+using Android.Content;
+using Android.OS;
+using Android.Runtime;
+using Android.Support.V4.App;
+using Android.Support.V4.Content;
+using Android.Widget;
+using iText.IO.Font.Constants;
+using iText.Kernel.Font;
+using iText.Kernel.Geom;
+using iText.Kernel.Pdf;
+using iText.Kernel.Pdf.Canvas;
+using iText.Layout;
+using iText.Layout.Element;
+using iText.Layout.Properties;
+using System;
+using System.IO;
+
+namespace PruebaPDF
+{
+    [Activity(Label = "@string/app_name", Theme = "@style/AppTheme", MainLauncher = true)]
+    public class MainActivity : Activity
+    {
+        Button btnPDF;
+        protected override void OnCreate(Bundle savedInstanceState)
+        {
+            base.OnCreate(savedInstanceState);
+            SetContentView(Resource.Layout.activity_main);
+
+            btnPDF = FindViewById<Button>(Resource.Id.btnPDF);
+            btnPDF.Click += BtnPDF_Click;
+
+            //Pido los permisos necesarios
+            if (Build.VERSION.SdkInt >= Android.OS.BuildVersionCodes.M){ //Mayores a Android 6.0
+                int permissionCheck = Convert.ToInt32(ContextCompat.CheckSelfPermission(this, Android.Manifest.Permission.WriteExternalStorage));
+
+                if (permissionCheck != PermissionChecker.PermissionGranted){
+                    ActivityCompat.RequestPermissions(this, new string[] { Android.Manifest.Permission.WriteExternalStorage }, 0);
+                }
+
+                permissionCheck = Convert.ToInt32(ContextCompat.CheckSelfPermission(this, Android.Manifest.Permission.ReadExternalStorage));
+                if (permissionCheck != PermissionChecker.PermissionGranted)
+                {
+                    ActivityCompat.RequestPermissions(this, new string[] { Android.Manifest.Permission.ReadExternalStorage }, 0);
+                }
+            }
+        }
+
+        private void BtnPDF_Click(object sender, System.EventArgs e)
+        {
+            //GeneraPDF();
+            PDFTest();
+        }
+
+        private void PDFTest()
+        {
+            int permissionCheck = Convert.ToInt32(ContextCompat.CheckSelfPermission(this, Android.Manifest.Permission.ReadExternalStorage));
+            if (permissionCheck != PermissionChecker.PermissionGranted)
+            {
+                ActivityCompat.RequestPermissions(this, new string[] { Android.Manifest.Permission.ReadExternalStorage }, 0);
+            }
+
+            //var directory = new Java.IO.File("/mnt/sdcard-ext", "DCIM").ToString();
+            var directory = Android.OS.Environment.ExternalStorageDirectory.Path + "/Prueba";
+            if (!Directory.Exists(directory)){
+                Directory.CreateDirectory(directory);
+            }
+            var pdf = System.IO.Path.Combine(directory, "Prueba.pdf");
+
+            if (File.Exists(pdf)){
+                File.Delete(pdf);
+            }
+
+            var writer = new PdfWriter(pdf);
+            var docPDF = new PdfDocument(writer);
+            var documento = new Document(docPDF);
+            documento.Add(new Paragraph("Hola mundo!"));
+            documento.Close();
+
+            Android.Net.Uri uri;
+            Java.IO.File file = new Java.IO.File(pdf);
+            file.SetReadable(true);
+            if (Build.VERSION.SdkInt >= Build.VERSION_CODES.N){ //Mayor o igual a Android 7
+                uri = Android.Net.Uri.Parse(pdf);
+            }else{
+                uri = Android.Net.Uri.FromFile(file);
+            }
+
+            Intent verPDF = new Intent(Intent.ActionView);
+            verPDF.SetDataAndType(uri, "application/pdf");
+            verPDF.SetFlags(ActivityFlags.ClearWhenTaskReset | ActivityFlags.NewTask);
+            if (file.Exists())
+            {
+                /*Intent chooserIntent = Intent.CreateChooser(verPDF, "Open Report");
+                StartActivity(chooserIntent);*/
+                StartActivity(verPDF);
+            }
+        }
+
+        private void GeneraPDF()
+        {
+            var directory = new Java.IO.File("/mnt/sdcard", "Prueba").ToString();
+            directory = Android.OS.Environment.ExternalStorageDirectory.Path + "/Prueba";
+
+
+            if (!Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            var path = System.IO.Path.Combine(directory, "Prueba.pdf");
+
+            var pdfAdjunto = path;
+
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+
+            PdfWriter writer = new PdfWriter(path);
+            PdfDocument pdf = new PdfDocument(writer);
+            PdfPage pagina = pdf.AddNewPage(PageSize.A4);
+            PdfCanvas canvas = new PdfCanvas(pagina);
+            Document document = new Document(pdf);
+
+            PdfFont Helvetica = PdfFontFactory.CreateFont(StandardFonts.HELVETICA, iText.IO.Font.PdfEncodings.CP1252, false);
+            PdfFont HelveticaBold = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_BOLD, iText.IO.Font.PdfEncodings.CP1252, false);
+            PdfFont HelveticaCursiva = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_OBLIQUE, iText.IO.Font.PdfEncodings.CP1252, false);
+            PdfFont HelveticaNC = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_BOLDOBLIQUE, iText.IO.Font.PdfEncodings.CP1252, false);
+
+            TextAlignment izquierda = TextAlignment.LEFT;
+            TextAlignment derecha = TextAlignment.RIGHT;
+            TextAlignment centrado = TextAlignment.CENTER;
+            TextAlignment justificado = TextAlignment.JUSTIFIED;
+
+            document.SetFont(Helvetica);
+            document.SetFontSize(18);
+            document.ShowTextAligned("Esta es una prueba de un PDF", 300, 820, centrado);
+
+            //Inserta una linea
+            canvas.SetLineWidth(1);
+            canvas.MoveTo(15F, document.GetTopMargin()); //Hay que ver el GetTopMargin y el GetRightMargin
+            canvas.LineTo(document.GetRightMargin(), document.GetTopMargin());
+            canvas.Stroke();
+
+            document.Add(new Paragraph("\n"));
+            document.Add(new Paragraph("\n"));
+
+            document.ShowTextAligned("Texto abajo de la linea", 300, 820, centrado);
+
+            document.Close();
+            writer.Close();
+            //pdf.Close();
+
+            Android.Net.Uri uri;
+            Java.IO.File file = new Java.IO.File(path);
+            file.SetReadable(true);
+            if (Build.VERSION.SdkInt >= Build.VERSION_CODES.N)
+            { //Mayor o igual a Android 7
+                uri = Android.Net.Uri.Parse(path);
+            }
+            else
+            {
+                uri = Android.Net.Uri.FromFile(file);
+            }
+
+            Intent verPDF = new Intent(Intent.ActionView);
+            verPDF.SetDataAndType(uri, "application/pdf");
+            verPDF.SetFlags(ActivityFlags.ClearWhenTaskReset | ActivityFlags.NewTask);
+            if (file.Exists())
+            {
+                Intent chooserIntent = Intent.CreateChooser(verPDF, "Open Report");
+                StartActivity(chooserIntent);
+                //StartActivity(verPDF);
+            }
+
+        }
+    }
+}
